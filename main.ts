@@ -3,9 +3,10 @@
 //
 // The front page lives in this repo as entry.png (1024x1024, drawn with
 // PIL for Tuesday 24 November 2026). This program ships it to the output
-// directory byte-for-byte, after confirming it really is a PNG and fits
-// the 1 MiB limit, so a damaged file fails loudly instead of silently
-// submitting garbage. Node 22, standard library only, no network.
+// directory byte-for-byte, after confirming it really is a PNG, is exactly
+// 1024x1024, and fits the 1 MiB limit, so a damaged file fails loudly
+// instead of silently submitting garbage. Node 22, standard library only,
+// no network.
 //
 // Try it outside the grader with:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
@@ -37,6 +38,26 @@ if (!data.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
 if (data.length > MAX_BYTES) {
   throw new Error(
     `entry.png is ${data.length} bytes, over the ${MAX_BYTES} byte limit`,
+  );
+}
+
+// The front page must be exactly 1024x1024: read the width and height
+// from the PNG IHDR chunk (bytes 16-23, big-endian uint32) and reject
+// anything else, so a wrongly-sized image fails loudly here.
+const EXPECTED_WIDTH = 1024;
+const EXPECTED_HEIGHT = 1024;
+const IHDR_LENGTH = 25; // signature (8) + length (4) + "IHDR" (4) + width (4) + height (4) + 1
+if (data.length < IHDR_LENGTH) {
+  throw new Error('entry.png is too short to contain a PNG IHDR chunk');
+}
+if (data.subarray(12, 16).toString('ascii') !== 'IHDR') {
+  throw new Error('entry.png has no IHDR chunk where one is expected');
+}
+const width = data.readUInt32BE(16);
+const height = data.readUInt32BE(20);
+if (width !== EXPECTED_WIDTH || height !== EXPECTED_HEIGHT) {
+  throw new Error(
+    `entry.png is ${width}x${height}, expected exactly ${EXPECTED_WIDTH}x${EXPECTED_HEIGHT}`,
   );
 }
 
